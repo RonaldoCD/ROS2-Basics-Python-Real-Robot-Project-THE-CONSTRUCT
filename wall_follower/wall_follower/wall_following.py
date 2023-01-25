@@ -40,7 +40,7 @@ class WallFollower(Node):
         
         self.distance_to_front_wall = 0.0
 
-        self.linear_vel = 0.1
+        self.linear_vel = 0.15
         self.angular_vel = 0.1
         self.shift_angle = 0.0
         self.angle_tol = 0.05 * np.pi / 180
@@ -55,6 +55,31 @@ class WallFollower(Node):
         self.get_logger().info('Angle direccion: "%s"' % str(self.rotation_z * 180/ np.pi))
         self.get_logger().info('Shift angle: "%s"' % str(self.shift_angle * 180/ np.pi))
 
+    def motion_to_center(self):
+        angular_z = 0.0
+        delta_dist_to_wall = self.distance_to_wall - 0.25
+
+        if delta_dist_to_wall < 0:
+            turn_sign = +1
+        else:
+            turn_sign = -1
+        
+        if abs(delta_dist_to_wall) >= self.dist_tol:
+            dist_to_go = abs(delta_dist_to_wall) / np.sin(abs(self.shift_angle))
+            if dist_to_go / (self.timer_period * self.linear_vel) >= 1:
+                linear_x = self.linear_vel
+                angular_z = turn_sign * self.angular_vel
+            else:
+                linear_x = (dist_to_go / (self.timer_period * self.linear_vel))* self.linear_vel
+                angular_z = (-1) * self.shift_angle / self.timer_period
+        else:
+            linear_x = self.linear_vel
+            if self.shift_angle >= self.angle_tol:
+                angular_z = (-1) * self.shift_angle / self.timer_period
+
+        return (linear_x, angular_z)
+            
+
     def motion(self):
         # print the data
         msg = Twist()
@@ -67,27 +92,9 @@ class WallFollower(Node):
             msg.angular.z = self.angular_vel
             msg_to_print = "The robot is moving away to the wall"
         else:
-            delta_dist_to_wall = abs(self.distance_to_wall - 0.25)
-            turn_sign = 1
-            if self.shift_angle > 0:
-                turn_sign = -1
-
-            if delta_dist_to_wall >= self.dist_tol:
-                dist_to_go = delta_dist_to_wall / np.sin(abs(self.shift_angle))
-                if dist_to_go / (self.timer_period * self.linear_vel) >= 1:
-                    msg.linear.x = self.linear_vel
-                else:
-                    msg.linear.x = dist_to_go / (self.timer_period * self.linear_vel)
-                
-                if abs(self.shift_angle) / (self.timer_period * self.angular_vel) >= 1:
-                    msg.angular.z = turn_sign * self.linear_vel
-                else:
-                    msg.angular.z = turn_sign * (abs(self.shift_angle) / (self.timer_period * self.angular_vel))
-
-            else:
-                msg.linear.x = self.linear_vel
-                msg.angular.z = 0
-            
+            linear_x, angular_z = self.motion_to_center()
+            msg.linear.x = linear_x
+            msg.angular.z = angular_z 
             msg_to_print = "The robot is advancing forward"
 
             # msg.linear.x = self.linear_vel
