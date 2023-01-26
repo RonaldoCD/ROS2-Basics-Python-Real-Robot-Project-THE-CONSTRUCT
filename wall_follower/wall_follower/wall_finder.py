@@ -99,17 +99,14 @@ class WallFinder(Node):
 
         final_objective_angle = (objective_angle + (np.pi / 2.0)) % (2*np.pi)
         self.get_logger().info('Last objective angle: "%s"' % str(final_objective_angle * 180/ np.pi))
-        temp = abs(self.robot_yaw - final_objective_angle) % (2 * np.pi)
-        self.get_logger().info('Temp: "%s"' % str(temp * 180/ np.pi))
-        while temp > self.angle_tol:
+        while abs(self.robot_yaw - final_objective_angle) % (2 * np.pi) > self.angle_tol:
             msg.linear.x = 0.0
             msg.angular.z = self.angular_z
             self.cmd_vel_publisher_.publish(msg)
-            temp = abs(self.robot_yaw - final_objective_angle) % (2 * np.pi)
-            self.get_logger().info('Temp: "%s"' % str(temp * 180/ np.pi))
                 
         msg.linear.x = 0.0
         msg.angular.z = 0.0
+        self.cmd_vel_publisher_.publish(msg)
         
         response.wallfound = True
         
