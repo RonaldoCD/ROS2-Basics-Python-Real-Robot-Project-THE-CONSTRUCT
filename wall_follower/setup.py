@@ -23,7 +23,8 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'wall_follower = wall_follower.wall_following:main'
+            'wall_follower = wall_follower.wall_following:main',
+            'wall_finder = wall_follower.wall_finder:main'
         ],
     },
 )
