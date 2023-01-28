@@ -15,7 +15,6 @@ from rclpy.executors import MultiThreadedExecutor, SingleThreadedExecutor
 from rclpy.callback_groups import ReentrantCallbackGroup, MutuallyExclusiveCallbackGroup
 
 
-
 class WallFinder(Node):
 
     def __init__(self):
@@ -88,7 +87,7 @@ class WallFinder(Node):
             self.first_turn_finished = True
         
         linear_x_sign = 1
-        if self.dist_nearest_wall < 0.3:
+        if self.dist_to_wall < 0.3:
             linear_x_sign = -1
         while abs(self.dist_to_wall - 0.3) > self.dist_tol:
             msg.linear.x = linear_x_sign * self.linear_x
@@ -180,7 +179,7 @@ def main(args=None):
     rclpy.init(args=args)
     wall_finder_node = WallFinder()
     # Create a MultiThreadedExecutor with 3 threads
-    executor = MultiThreadedExecutor(num_threads=3)
+    executor = MultiThreadedExecutor(num_threads=4)
     # Add the node to the executor
     executor.add_node(wall_finder_node)
     try:

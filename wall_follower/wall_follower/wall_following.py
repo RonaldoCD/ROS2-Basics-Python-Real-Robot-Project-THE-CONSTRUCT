@@ -4,21 +4,29 @@ from geometry_msgs.msg import Twist
 from sensor_msgs.msg import LaserScan
 from nav_msgs.msg import Odometry
 from rclpy.qos import ReliabilityPolicy, QoSProfile
+from custom_interfaces.srv import FindWall
+from threading import Thread
 import numpy as np
 import time
 
 class WallFollower(Node):
 
     def __init__(self):
-        # Here you have the class constructor
-        # call super() in the constructor to initialize the Node object
-        # the parameter you pass is the node name
+       
         super().__init__('wall_follower')
-        # create the subscriber object
-        # in this case, the subscriptor will be subscribed on /scan topic with a queue size of 10 messages.
-        # use the LaserScan module for /scan topic
-        # send the received info to the listener_callback method.
         
+        # Wall finder client 
+        self.wall_finder_client = self.create_client(FindWall, 'find_wall')
+        # checks once per second if a Service matching the type and name of the Client is available.
+        while not self.wall_finder_client.wait_for_service(timeout_sec=1.0):
+            # if it is not available, a message is displayed
+            self.get_logger().info('service not available, waiting again...')
+        
+        self.req = FindWall.Request()
+        self.response = FindWall.Response()
+        self.request_sent = False
+
+        # Wall follower functionality
         self.cmd_vel_publisher_ = self.create_publisher(Twist, 'cmd_vel', 10)
         self.laser_subscriber_ = self.create_subscription(
             LaserScan,
@@ -48,7 +56,13 @@ class WallFollower(Node):
         self.print_timer_period = 2.5
         self.print_timer = self.create_timer(self.print_timer_period, self.print_function)
         self.dist_tol = 0.005
-                    
+    
+    def send_request(self):
+        # send the request
+        self.get_logger().info('Service has started')
+        self.response = self.wall_finder_client.call(self.req)
+        # self.get_logger().info('SERVICE HAS FINISHED')
+     
     def print_function(self):
         self.get_logger().info('Distance to wall: "%s"' % str(self.distance_to_wall))
         self.get_logger().info('Distance to front wall: "%s"' % str(self.distance_to_front_wall))
@@ -82,42 +96,43 @@ class WallFollower(Node):
 
     def motion(self):
         # print the data
-        msg = Twist()
-        if self.distance_to_wall > 0.3:
-            msg.linear.x = self.linear_vel
-            msg.angular.z = - self.angular_vel
-            msg_to_print = "The robot is approaching the wall"
-        elif self.distance_to_wall < 0.2:
-            msg.linear.x = self.linear_vel
-            msg.angular.z = self.angular_vel
-            msg_to_print = "The robot is moving away to the wall"
+
+        if self.request_sent is False:
+            # making sure that the request will not be called again in the callback function
+            self.request_sent = True
+            self.send_request()
+            self.get_logger().info('SERVICE HAS FINISHED')
+
+        
+        if not self.response.wallfound:
+            self.get_logger().info('Service response not received yet')
         else:
-            linear_x, angular_z = self.motion_to_center()
-            msg.linear.x = linear_x
-            msg.angular.z = angular_z 
-            msg_to_print = "The robot is advancing forward"
+            msg = Twist()
+            if self.distance_to_wall > 0.3:
+                msg.linear.x = self.linear_vel
+                msg.angular.z = - self.angular_vel
+                msg_to_print = "The robot is approaching the wall"
+            elif self.distance_to_wall < 0.2:
+                msg.linear.x = self.linear_vel
+                msg.angular.z = self.angular_vel
+                msg_to_print = "The robot is moving away to the wall"
+            else:
+                linear_x, angular_z = self.motion_to_center()
+                msg.linear.x = linear_x
+                msg.angular.z = angular_z 
+                msg_to_print = "The robot is advancing forward"
+                
+            self.get_logger().info(msg_to_print)
 
-            # msg.linear.x = self.linear_vel
-            # if abs(self.shift_angle) > self.angle_tol:
-            #     if self.shift_angle > 0:
-            #         msg.angular.z = - self.angular_vel
-            #     else:
-            #         msg.angular.z = self.angular_vel
-            # else:
-            #     msg.angular.z = 0.0
-            # msg_to_print = "The robot is advancing forward"
+            if self.distance_to_front_wall < 0.5:
+                msg.linear.x = self.linear_vel
+                msg.angular.z = self.angular_vel * 1.5
+                self.get_logger().info("The robot is turning left to avoid front wall")
+
+            self.cmd_vel_publisher_.publish(msg)
             
-        self.get_logger().info(msg_to_print)
 
-        if self.distance_to_front_wall < 0.5:
-            msg.linear.x = self.linear_vel
-            msg.angular.z = 1.2
-            self.get_logger().info("The robot is turning left to avoid front wall")
-
-        self.cmd_vel_publisher_.publish(msg)
-        
-
-        
+            
         
         # Logic of move
         
@@ -142,17 +157,6 @@ class WallFollower(Node):
         # self.get_logger().info('Distance to wall: "%s"' % str(self.distance_to_wall))
 
         self.distance_to_front_wall = msg.ranges[360]
-        # distance_0 = msg.ranges[0]
-        # distance_180 = msg.ranges[180]
-        # distance_360 = msg.ranges[360]
-        # distance_540 = msg.ranges[540]
-        # self.get_logger().info('Distance to front wall: "%s"' % str(self.distance_to_front_wall))
-        # self.get_logger().info('0° : "%s"' % str(distance_0))
-        # self.get_logger().info('90° : "%s"' % str(distance_180))
-        # self.get_logger().info('180° : "%s"' % str(distance_360))
-        # self.get_logger().info('270° : "%s"' % str(distance_540))
-        
-        # time.sleep(5)
 
         
     def odom_callback(self, msg):
@@ -198,17 +202,25 @@ class WallFollower(Node):
 
 
 def main(args=None):
-    # initialize the ROS communication
-    rclpy.init(args=args)
-    # declare the node constructor
-    wall_follower_node = WallFollower()
-    # pause the program execution, waits for a request to kill the node (ctrl+c)
-    rclpy.spin(wall_follower_node)
-    # Explicity destroy the node
-    wall_follower_node.destroy_node()
-    # shutdown the ROS communication
-    rclpy.shutdown()
+    # rclpy.init(args=args)
+    # # declare the node constructor
+    # client_node = WallFollower()
+    # # run the send_request() method
+    # client_node.send_request()
 
+    # spin_thread = Thread(target=rclpy.spin, args=(client_node,))
+    # spin_thread.start()
+
+    # response = client_node.send_request()
+    # client_node.get_logger().info( 'Wall finder service has finished')
+    # client_node.destroy_node()
+    # rclpy.shutdown()
+    
+    rclpy.init(args=args)
+    wall_follower_node = WallFollower()
+    rclpy.spin(wall_follower_node)
+    wall_follower_node.destroy_node()
+    rclpy.shutdown()
 
 if __name__ == '__main__':
     main()
