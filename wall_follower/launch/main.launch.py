@@ -10,6 +10,10 @@ def generate_launch_description():
             output='screen'),
         Node(
             package='wall_follower',
+            executable='odom_recorder_server',
+            output='screen'),
+        Node(
+            package='wall_follower',
             executable='wall_follower',
             output='screen'),
     ])

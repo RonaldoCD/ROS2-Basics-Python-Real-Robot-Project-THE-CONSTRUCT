@@ -13,13 +13,15 @@ from rclpy.qos import ReliabilityPolicy, QoSProfile
 import numpy as np
 from rclpy.executors import MultiThreadedExecutor, SingleThreadedExecutor
 from rclpy.callback_groups import ReentrantCallbackGroup, MutuallyExclusiveCallbackGroup
-
+import time
 
 class WallFinder(Node):
 
     def __init__(self):
         # Here you have the class constructor
         self.group1 = ReentrantCallbackGroup()
+        self.group2 = ReentrantCallbackGroup()
+        self.group3 = ReentrantCallbackGroup()
         # call the class constructor to initialize the node as service_stop
         super().__init__('wall_finder_server')
 
@@ -35,26 +37,26 @@ class WallFinder(Node):
             '/odom',
             self.odom_callback,
             QoSProfile(depth=10, reliability=ReliabilityPolicy.RMW_QOS_POLICY_RELIABILITY_RELIABLE),
-            callback_group=self.group1)  
+            callback_group=self.group2)  
 
         self.wall_finder_srv = self.create_service(
             FindWall, 
             'find_wall', 
             self.wall_finder_srv_callback,
-            callback_group=self.group1)
+            callback_group=self.group3)
 
         self.cmd_vel_publisher_ = self.create_publisher(Twist, 'cmd_vel', 10)
         self.nearest_wall_identified = False
         self.angle_fisrt_turn = 0.0
-        self.angular_z = 0.1
+        self.angular_z = 0.15
         self.linear_x = 0.05
         self.angle_to_rotate = 0.0
         self.robot_yaw = 0.0
-        self.angle_tol = 0.5 * np.pi / 180
+        self.angle_tol = 3 * np.pi / 180
         self.dist_tol = 0.05
 
         self.print_timer_period = 3
-        self.print_timer = self.create_timer(self.print_timer_period, self.print_function)
+        # self.print_timer = self.create_timer(self.print_timer_period, self.print_function)
 
         self.first_turn_finished = False
         self.dist_nearest_wall = 0.0
@@ -75,6 +77,10 @@ class WallFinder(Node):
         self.get_logger().info('Initial yaw angle: "%s"' % str(robot_initial_yaw * 180/ np.pi))
         self.get_logger().info('Objective angle: "%s"' % str(objective_angle * 180/ np.pi))
         
+        while not self.nearest_wall_identified:
+            self.get_logger().info('WAITING FOR IDENTIFYING THE NEAREST WALL')
+            time.sleep(0.5)
+            
         if self.nearest_wall_identified is True:
             while abs(self.robot_yaw - objective_angle)%(2*np.pi) > self.angle_tol:
                 if self.angle_to_rotate > 0:
@@ -102,7 +108,7 @@ class WallFinder(Node):
             msg.linear.x = 0.0
             msg.angular.z = self.angular_z
             self.cmd_vel_publisher_.publish(msg)
-                
+
         msg.linear.x = 0.0
         msg.angular.z = 0.0
         self.cmd_vel_publisher_.publish(msg)
