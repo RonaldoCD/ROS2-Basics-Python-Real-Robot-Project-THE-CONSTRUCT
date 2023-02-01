@@ -106,7 +106,7 @@ class WallFollower(Node):
         
         if abs(delta_dist_to_wall) >= self.dist_tol:
             dist_to_go = abs(delta_dist_to_wall) / np.sin(abs(self.shift_angle))
-            self.get_logger().info("outside tolerance")
+            # self.get_logger().info("outside tolerance")
             if dist_to_go / (self.timer_period * self.linear_vel) >= 1:
                 linear_x = self.linear_vel
                 angular_z = turn_sign * self.angular_vel
@@ -114,7 +114,7 @@ class WallFollower(Node):
                 linear_x = (dist_to_go / (self.timer_period * self.linear_vel))* self.linear_vel
                 angular_z = (-1) * (self.shift_angle/2) / self.timer_period
         else:
-            self.get_logger().info("inside tolerance")
+            # self.get_logger().info("inside tolerance")
             linear_x = self.linear_vel
             if self.shift_angle >= self.angle_tol:
                 angular_z = (-1) * self.shift_angle / self.timer_period
@@ -149,23 +149,23 @@ class WallFollower(Node):
             if self.distance_to_front_wall < 0.5:
                 msg.linear.x = self.linear_vel
                 msg.angular.z = self.angular_vel * 5
-                msg_to_print = "The robot is turning left to avoid front wall"
+                # msg_to_print = "The robot is turning left to avoid front wall"
             else:
                 if self.distance_to_wall > 0.3:
                     msg.linear.x = self.linear_vel
                     msg.angular.z = - self.angular_vel
-                    msg_to_print = "The robot is approaching the wall"
+                    # msg_to_print = "The robot is approaching the wall"
                 elif self.distance_to_wall < 0.2:
                     msg.linear.x = self.linear_vel
                     msg.angular.z = self.angular_vel
-                    msg_to_print = "The robot is moving away to the wall"
+                    # msg_to_print = "The robot is moving away to the wall"
                 else:
                     linear_x, angular_z = self.motion_to_center()
                     msg.linear.x = linear_x
                     msg.angular.z = angular_z 
-                    msg_to_print = "The robot is advancing forward"
+                    # msg_to_print = "The robot is advancing forward"
 
-            self.get_logger().info(msg_to_print)
+            # self.get_logger().info(msg_to_print)
             self.cmd_vel_publisher_.publish(msg)
             
 
@@ -260,7 +260,7 @@ class WallFollower(Node):
         list_of_odoms = result.list_of_odoms
         self.get_logger().info('The Action Server has finished, it has recorded: "%s" points' % str(len(list_of_odoms)))
         self.get_logger().info('Points: "%s"' % str(list_of_odoms))
-        rclpy.shutdown()
+        # rclpy.shutdown()
 
     def feedback_callback(self, feedback_msg):
         feedback = feedback_msg.feedback

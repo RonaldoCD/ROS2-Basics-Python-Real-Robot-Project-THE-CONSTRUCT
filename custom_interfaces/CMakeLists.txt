@@ -40,6 +40,7 @@ endif()
 rosidl_generate_interfaces(${PROJECT_NAME}
   "srv/FindWall.srv"
   "action/OdomRecord.action"
+  DEPENDENCIES std_msgs geometry_msgs action_msgs
 )
 
 ament_package()

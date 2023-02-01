@@ -53,7 +53,7 @@ class WallFinder(Node):
         self.angle_to_rotate = 0.0
         self.robot_yaw = 0.0
         self.angle_tol = 3 * np.pi / 180
-        self.dist_tol = 0.05
+        self.dist_tol = 0.02
 
         self.print_timer_period = 3
         # self.print_timer = self.create_timer(self.print_timer_period, self.print_function)

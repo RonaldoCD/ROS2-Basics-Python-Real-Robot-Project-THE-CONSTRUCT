@@ -1,5 +1,5 @@
 
 ---
-geometry_msgs/Point[] list_of_odoms
+geometry_msgs/Point32[] list_of_odoms
 ---
 float32 current_total
