@@ -20,8 +20,8 @@ class OdomRecordServer(Node):
     def __init__(self):
         super().__init__('record_odom_server')
         
-        self.group1 = ReentrantCallbackGroup()
-        self.group2 = ReentrantCallbackGroup()
+        self.group1 = MutuallyExclusiveCallbackGroup()
+        self.group2 = MutuallyExclusiveCallbackGroup()
         
         self._action_server = ActionServer(self, 
             OdomRecord, 

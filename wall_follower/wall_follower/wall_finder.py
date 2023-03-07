@@ -19,11 +19,18 @@ class WallFinder(Node):
 
     def __init__(self):
         # Here you have the class constructor
-        self.group1 = ReentrantCallbackGroup()
-        self.group2 = ReentrantCallbackGroup()
-        self.group3 = ReentrantCallbackGroup()
+        self.group1 = MutuallyExclusiveCallbackGroup()
+        self.group2 = MutuallyExclusiveCallbackGroup()
+        self.group3 = MutuallyExclusiveCallbackGroup()
         # call the class constructor to initialize the node as service_stop
         super().__init__('wall_finder_server')
+
+        self.odom_subscriber_ = self.create_subscription(
+            Odometry,
+            '/odom',
+            self.odom_callback,
+            QoSProfile(depth=10, reliability=ReliabilityPolicy.RMW_QOS_POLICY_RELIABILITY_RELIABLE),
+            callback_group=self.group2)  
 
         self.laser_subscriber_ = self.create_subscription(
             LaserScan,
@@ -31,13 +38,6 @@ class WallFinder(Node):
             self.laser_callback,
             QoSProfile(depth=10, reliability=ReliabilityPolicy.RMW_QOS_POLICY_RELIABILITY_RELIABLE),
             callback_group=self.group1)  
-            
-        self.odom_subscriber_ = self.create_subscription(
-            Odometry,
-            '/odom',
-            self.odom_callback,
-            QoSProfile(depth=10, reliability=ReliabilityPolicy.RMW_QOS_POLICY_RELIABILITY_RELIABLE),
-            callback_group=self.group2)  
 
         self.wall_finder_srv = self.create_service(
             FindWall, 
@@ -48,12 +48,12 @@ class WallFinder(Node):
         self.cmd_vel_publisher_ = self.create_publisher(Twist, 'cmd_vel', 10)
         self.nearest_wall_identified = False
         self.angle_fisrt_turn = 0.0
-        self.angular_z = 0.15
-        self.linear_x = 0.05
+        self.angular_z = 0.1
+        self.linear_x = 0.08
         self.angle_to_rotate = 0.0
         self.robot_yaw = 0.0
-        self.angle_tol = 3 * np.pi / 180
-        self.dist_tol = 0.02
+        self.angle_tol = 10 * np.pi / 180
+        self.dist_tol = 0.1
 
         self.print_timer_period = 3
         # self.print_timer = self.create_timer(self.print_timer_period, self.print_function)
@@ -62,6 +62,26 @@ class WallFinder(Node):
         self.dist_nearest_wall = 0.0
         self.dist_to_wall = 0.0
 
+    def laser_callback(self, msg):
+        # print the log info in the terminal
+        # self.get_logger().info(str(self.nearest_wall_identified))
+        if not self.nearest_wall_identified:
+            ranges_length = round((2 * np.pi / msg.angle_increment) + 1)
+            ranges = msg.ranges[:]
+            # for i in range(ranges_length):
+            #     ranges.append(msg.ranges[i])
+            ranges = np.array(ranges)
+            min_range_idx = np.argmin(ranges)
+            self.get_logger().info('Min range idx: "%s"' % str(min_range_idx))
+
+            min_range_angle = (2 * np.pi * (min_range_idx + 1)) / ranges_length
+            angle_to_rotate = min_range_angle - np.pi
+            self.angle_to_rotate = angle_to_rotate
+            self.nearest_wall_identified = True
+            self.dist_nearest_wall = msg.ranges[min_range_idx]
+        
+        self.dist_to_wall = msg.ranges[360]
+    
     def print_function(self):
         self.get_logger().info('Robot yaw angle: "%s"' % str(self.robot_yaw * 180/ np.pi))
         self.get_logger().info('Dist to wall: "%s"' % str(self.dist_to_wall))
@@ -116,27 +136,6 @@ class WallFinder(Node):
         response.wallfound = True
         
         return response
-    
-    def laser_callback(self, msg):
-        # print the log info in the terminal
-        if self.nearest_wall_identified is False:    
-            ranges_length = round((2 * np.pi / msg.angle_increment) + 1)
-            ranges = []
-            for i in range(ranges_length):
-                ranges.append(msg.ranges[i])
-            
-            ranges = np.array(ranges)
-            min_range_idx = np.argmin(ranges)
-            self.get_logger().info('Min range idx: "%s"' % str(min_range_idx))
-
-            min_range_angle = (2 * np.pi * (min_range_idx + 1)) / ranges_length
-            angle_to_rotate = min_range_angle - np.pi
-            self.angle_to_rotate = angle_to_rotate
-            self.nearest_wall_identified = True
-            self.dist_nearest_wall = msg.ranges[min_range_idx]
-        
-        self.dist_to_wall = msg.ranges[360]
-    
   
     def odom_callback(self, msg):
         # print the log info in the terminal
@@ -153,7 +152,7 @@ class WallFinder(Node):
             rotation_z += np.pi
         
         self.robot_yaw = rotation_z
-        # self.get_logger().info('Angle direccion: "%s"' % str(rotation_z * 180/ np.pi))
+        self.get_logger().info('Angle direccion: "%s"' % str(rotation_z * 180/ np.pi))
     
     def euler_from_quaternion(self, quaternion):
         """

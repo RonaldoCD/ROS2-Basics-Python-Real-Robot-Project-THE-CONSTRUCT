@@ -20,11 +20,11 @@ class WallFollower(Node):
        
         super().__init__('wall_follower')
 
-        self.group1 = ReentrantCallbackGroup()
-        self.group2 = ReentrantCallbackGroup()
-        self.group3 = ReentrantCallbackGroup()
-        self.group4 = ReentrantCallbackGroup()
-        self.group5 = ReentrantCallbackGroup()
+        self.group1 = MutuallyExclusiveCallbackGroup()
+        self.group2 = MutuallyExclusiveCallbackGroup()
+        self.group3 = MutuallyExclusiveCallbackGroup()
+        self.group4 = MutuallyExclusiveCallbackGroup()
+        self.group5 = MutuallyExclusiveCallbackGroup()
         
         # Wall finder client 
         self.wall_finder_client = self.create_client(FindWall, 
