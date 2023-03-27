@@ -25,8 +25,7 @@ setup(
         'console_scripts': [
             'wall_follower = wall_follower.wall_following:main',
             'wall_finder = wall_follower.wall_finder:main',
-            'odom_recorder_server = wall_follower.odom_recorder:main',
-            'wall_finder_v2 = wall_follower.wall_finder_v2:main',
+            'odom_recorder_server = wall_follower.odom_recorder:main'
         ],
     },
 )

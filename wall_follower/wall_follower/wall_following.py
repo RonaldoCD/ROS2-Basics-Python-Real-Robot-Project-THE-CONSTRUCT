@@ -20,11 +20,7 @@ class WallFollower(Node):
        
         super().__init__('wall_follower')
 
-        self.group1 = MutuallyExclusiveCallbackGroup()
-        self.group2 = MutuallyExclusiveCallbackGroup()
-        self.group3 = MutuallyExclusiveCallbackGroup()
-        self.group4 = MutuallyExclusiveCallbackGroup()
-        self.group5 = MutuallyExclusiveCallbackGroup()
+        self.group1 = ReentrantCallbackGroup()
         
         # Wall finder client 
         self.wall_finder_client = self.create_client(FindWall, 
@@ -46,7 +42,7 @@ class WallFollower(Node):
         self.odom_recorder_client = ActionClient(self, 
             OdomRecord, 
             'record_odom', 
-            callback_group=self.group5)
+            callback_group=self.group1)
         self.action_called = False
 
         # Wall follower functionality
@@ -55,18 +51,18 @@ class WallFollower(Node):
             LaserScan,
             '/scan',
             self.laser_callback,
-            QoSProfile(depth=10, reliability=ReliabilityPolicy.RMW_QOS_POLICY_RELIABILITY_RELIABLE),
-            callback_group=self.group2)  # is the most used to read LaserScan data and some sensor data.
+            QoSProfile(depth=10, reliability=ReliabilityPolicy.BEST_EFFORT),
+            callback_group=self.group1)  # is the most used to read LaserScan data and some sensor data.
         
         self.odom_subscriber_ = self.create_subscription(
             Odometry,
             '/odom',
             self.odom_callback,
             QoSProfile(depth=10, reliability=ReliabilityPolicy.RMW_QOS_POLICY_RELIABILITY_RELIABLE),
-            callback_group=self.group3)  # is the most used to read LaserScan data and some sensor data.
+            callback_group=self.group1)  # is the most used to read LaserScan data and some sensor data.
         
         self.timer_period = 0.5
-        self.publisher_timer = self.create_timer(self.timer_period, self.motion, callback_group=self.group4)
+        self.publisher_timer = self.create_timer(self.timer_period, self.motion, callback_group=self.group1)
 
         self.distance_to_wall = 0.0
         self.rotation_z = 0.0
@@ -79,7 +75,7 @@ class WallFollower(Node):
         self.angle_tol = 0.1 * np.pi / 180
 
         self.print_timer_period = 2.0
-        self.print_timer = self.create_timer(self.print_timer_period, self.print_function, callback_group=self.group4)
+        self.print_timer = self.create_timer(self.print_timer_period, self.print_function, callback_group=self.group1)
         self.dist_tol = 0.005
 
         self.action_finished = False

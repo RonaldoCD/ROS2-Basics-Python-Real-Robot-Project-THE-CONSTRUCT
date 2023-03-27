@@ -6,7 +6,7 @@ def generate_launch_description():
     return LaunchDescription([
         Node(
             package='wall_follower',
-            executable='wall_finder_v2',
+            executable='wall_finder',
             output='screen'),
         Node(
             package='wall_follower',
