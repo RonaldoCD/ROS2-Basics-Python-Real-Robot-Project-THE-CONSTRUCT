@@ -19,9 +19,11 @@ class WallFinder(Node):
 
     def __init__(self):
         # Here you have the class constructor
-        self.group1 = MutuallyExclusiveCallbackGroup()
-        self.group2 = MutuallyExclusiveCallbackGroup()
-        self.group3 = MutuallyExclusiveCallbackGroup()
+        # self.group1 = MutuallyExclusiveCallbackGroup()
+        # self.group2 = MutuallyExclusiveCallbackGroup()
+        # self.group3 = MutuallyExclusiveCallbackGroup()
+        self.group1 = ReentrantCallbackGroup()
+        
         # call the class constructor to initialize the node as service_stop
         super().__init__('wall_finder_server')
 
@@ -30,7 +32,7 @@ class WallFinder(Node):
             '/odom',
             self.odom_callback,
             QoSProfile(depth=10, reliability=ReliabilityPolicy.RMW_QOS_POLICY_RELIABILITY_RELIABLE),
-            callback_group=self.group2)  
+            callback_group=self.group1)  
 
         self.laser_subscriber_ = self.create_subscription(
             LaserScan,
@@ -43,7 +45,7 @@ class WallFinder(Node):
             FindWall, 
             'find_wall', 
             self.wall_finder_srv_callback,
-            callback_group=self.group3)
+            callback_group=self.group1)
 
         self.cmd_vel_publisher_ = self.create_publisher(Twist, 'cmd_vel', 10)
         self.nearest_wall_identified = False
@@ -52,7 +54,7 @@ class WallFinder(Node):
         self.linear_x = 0.08
         self.angle_to_rotate = 0.0
         self.robot_yaw = 0.0
-        self.angle_tol = 10 * np.pi / 180
+        self.angle_tol = 5 * np.pi / 180
         self.dist_tol = 0.1
 
         self.print_timer_period = 3
@@ -108,10 +110,12 @@ class WallFinder(Node):
                 elif self.angle_to_rotate < 0:
                     msg.angular.z = -self.angular_z
                 self.cmd_vel_publisher_.publish(msg)
+                # self.get_logger().info('Turning to closest wall')
             msg.angular.z = 0.0
             self.cmd_vel_publisher_.publish(msg)
             self.first_turn_finished = True
         
+        # self.get_logger().info('The robot is looking to the closest wall')
         linear_x_sign = 1
         if self.dist_to_wall < 0.3:
             linear_x_sign = -1
@@ -119,6 +123,7 @@ class WallFinder(Node):
             msg.linear.x = linear_x_sign * self.linear_x
             msg.angular.z = 0.0
             self.cmd_vel_publisher_.publish(msg)
+            # self.get_logger().info('The robot is moving to be 30 cm away from the wall')
         msg.linear.x = 0.0
         self.cmd_vel_publisher_.publish(msg)
 
@@ -128,6 +133,7 @@ class WallFinder(Node):
             msg.linear.x = 0.0
             msg.angular.z = self.angular_z
             self.cmd_vel_publisher_.publish(msg)
+            # self.get_logger().info('The robot is doing the final rotation')
 
         msg.linear.x = 0.0
         msg.angular.z = 0.0
@@ -138,11 +144,13 @@ class WallFinder(Node):
         return response
   
     def odom_callback(self, msg):
-        # print the log info in the terminal
+
         x = msg.pose.pose.orientation.x
-        y = msg.pose.pose.orientation.x
+        y = msg.pose.pose.orientation.y
         z = msg.pose.pose.orientation.z
         w = msg.pose.pose.orientation.w
+
+        # self.get_logger().info("(" + str(x) + ", " + str(y) + ", " + str(z) + ", " + str(w) + ")")
 
         _, _, yaw = self.euler_from_quaternion([x, y, z, w])
         # self.get_logger().info('Yaw angle: "%s"' % str(yaw * 180/ np.pi))

@@ -43,7 +43,6 @@ class WallFollower(Node):
         self.find_wall_completed = False
         self.wall_follower_can_start = False
 
-
         self.odom_recorder_client = ActionClient(self, 
             OdomRecord, 
             'record_odom', 
@@ -79,9 +78,11 @@ class WallFollower(Node):
         self.shift_angle = 0.0
         self.angle_tol = 0.1 * np.pi / 180
 
-        self.print_timer_period = 3.2
+        self.print_timer_period = 2.0
         self.print_timer = self.create_timer(self.print_timer_period, self.print_function, callback_group=self.group4)
         self.dist_tol = 0.005
+
+        self.action_finished = False
     
     def send_request(self):
         # send the request
@@ -126,13 +127,12 @@ class WallFollower(Node):
 
         if not self.find_wall_started:
             self.find_wall_started = True
-            self.send_request()
             self.get_logger().info('SERVICE HAS STARTED')
-
+            self.send_request()
+            
         elif not self.find_wall_completed:
             if not self.find_wall_response.wallfound:
                 time.sleep(self.timer_period)
-                # self.get_logger().info('SERVICE KEEPS RUNING')
             else:
                 self.get_logger().info('SERVICE HAS FINISHED')
                 self.find_wall_completed = True
@@ -144,28 +144,31 @@ class WallFollower(Node):
                 self.get_logger().info('ACTION HAS BEGAN')
                 self.action_called = True
                 self.action_send_goal()
-                 
-            msg = Twist()
-            if self.distance_to_front_wall < 0.5:
-                msg.linear.x = self.linear_vel
-                msg.angular.z = self.angular_vel * 5
-                # msg_to_print = "The robot is turning left to avoid front wall"
-            else:
-                if self.distance_to_wall > 0.3:
-                    msg.linear.x = self.linear_vel
-                    msg.angular.z = - self.angular_vel
-                    # msg_to_print = "The robot is approaching the wall"
-                elif self.distance_to_wall < 0.2:
-                    msg.linear.x = self.linear_vel
-                    msg.angular.z = self.angular_vel
-                    # msg_to_print = "The robot is moving away to the wall"
-                else:
-                    linear_x, angular_z = self.motion_to_center()
-                    msg.linear.x = linear_x
-                    msg.angular.z = angular_z 
-                    # msg_to_print = "The robot is advancing forward"
 
-            # self.get_logger().info(msg_to_print)
+            msg = Twist()
+            if not self.action_finished:     
+                if self.distance_to_front_wall < 0.5:
+                    msg.linear.x = self.linear_vel
+                    msg.angular.z = self.angular_vel * 5
+                    # msg_to_print = "The robot is turning left to avoid front wall"
+                else:
+                    if self.distance_to_wall > 0.3:
+                        msg.linear.x = self.linear_vel
+                        msg.angular.z = - self.angular_vel
+                        # msg_to_print = "The robot is approaching the wall"
+                    elif self.distance_to_wall < 0.2:
+                        msg.linear.x = self.linear_vel
+                        msg.angular.z = self.angular_vel
+                        # msg_to_print = "The robot is moving away to the wall"
+                    else:
+                        linear_x, angular_z = self.motion_to_center()
+                        msg.linear.x = linear_x
+                        msg.angular.z = angular_z 
+                        # msg_to_print = "The robot is advancing forward"
+            else:
+                msg.linear.x = 0.0
+                msg.angular.z = 0.0
+                    
             self.cmd_vel_publisher_.publish(msg)
             
 
@@ -260,6 +263,7 @@ class WallFollower(Node):
         list_of_odoms = result.list_of_odoms
         self.get_logger().info('The Action Server has finished, it has recorded: "%s" points' % str(len(list_of_odoms)))
         self.get_logger().info('Points: "%s"' % str(list_of_odoms))
+        self.action_finished = True
         # rclpy.shutdown()
 
     def feedback_callback(self, feedback_msg):
