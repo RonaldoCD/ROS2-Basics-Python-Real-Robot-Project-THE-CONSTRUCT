@@ -48,7 +48,7 @@ class WallFinderServer(Node):
         self.dist_tol = 0.03
         self.laser_idx_tol = 6
         
-        self.vel_angular_z = 0.1
+        self.vel_angular_z = 0.2
         self.vel_linear_x = 0.05
 
         self.first_turn_finished = False
@@ -89,6 +89,8 @@ class WallFinderServer(Node):
         while (abs(self.laser_min_idx - self.front_laser_idx) > self.laser_idx_tol):
             msg.angular.z = self.turn_sign * self.vel_angular_z
             self.twist_publisher.publish(msg)
+            time.sleep(0.5)
+            self.get_logger().info('FIRST TURN')
         
         self.first_turn_finished = True
         msg.angular.z = 0.0
@@ -102,6 +104,8 @@ class WallFinderServer(Node):
             msg.linear.x = linear_x_sign * self.vel_linear_x
             msg.angular.z = 0.0
             self.twist_publisher.publish(msg)
+            time.sleep(0.5)
+            self.get_logger().info('LINEAR MOTION')
             
         msg.linear.x = 0.0
         self.twist_publisher.publish(msg)
@@ -110,6 +114,8 @@ class WallFinderServer(Node):
         while (abs(self.laser_min_idx - self.right_laser_idx) > self.laser_idx_tol):
             msg.angular.z = self.vel_angular_z
             self.twist_publisher.publish(msg)
+            time.sleep(0.5)
+            self.get_logger().info('SECOND TURN')
 
         self.second_turn_finished = True
         msg.angular.z = 0.0
